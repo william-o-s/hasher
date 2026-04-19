@@ -32,7 +32,9 @@ impl eframe::App for AppState {
             ui.horizontal(|ui| {
                 ui.label("File:");
                 if ui.button("Browse").clicked() {
-                    // TODO: Handle file browsing
+                    if let Some(path) = rfd::FileDialog::new().pick_file() {
+                        self.file_path = Some(path.to_string_lossy().to_string());
+                    }
                 }
 
                 if let Some(path) = &self.file_path {
