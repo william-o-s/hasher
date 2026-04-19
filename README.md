@@ -3,10 +3,11 @@
 A lean, cross-platform graphical desktop utility for computing and comparing file hashes. Built with **Rust** and **egui** to provide a fast, memory-safe, and native experience without the overhead of heavy browser-based frameworks.
 
 ## Basic Flow
-1. **Browse:** Click the "Browse" button to select any file from your local storage. The application uses your native OS file picker.
-2. **Hash Entry:** Enter the expected SHA256 hash string (provided by the author of the file) into the text box.
-3. **Verification:** As soon as the file is chosen, the application reads the file in chunks in a background thread and computes the SHA256 hash. A progress bar tracks the hashing. 
-4. **Result:** Once computed, the application will provide a prominent "Match" or "No Match" indicator. 
+1. **File Selection:** Click the "Browse" button to select a file using your native OS file picker, or simply drag and drop a file into the window.
+2. **Hash Entry:** Enter the expected SHA256 hash string into the text box. The application will dynamically check for a match as you type.
+3. **Verification:** Click the "Compute Hash" button to start the computation. The application reads the file in chunks in a background thread with a progress bar.
+4. **Result:** The application provides a prominent "Match" or "No Match" indicator that updates in real-time.
+
 
 ## Installation and Usage
 
