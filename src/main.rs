@@ -1,27 +1,12 @@
-#[derive(Debug, Clone, PartialEq)]
-pub enum VerificationStatus {
-    Idle,
-    Hashing,
-    Match,
-    NoMatch,
-    Error(String),
-}
+mod app;
 
-impl Default for VerificationStatus {
-    fn default() -> Self {
-        Self::Idle
-    }
-}
+use app::AppState;
 
-#[derive(Default)]
-pub struct AppState {
-    pub file_path: Option<String>,
-    pub expected_hash: String,
-    pub computed_hash: Option<String>,
-    pub progress: f32,
-    pub status: VerificationStatus,
-}
-
-fn main() {
-    println!("Hello, world!");
+fn main() -> eframe::Result<()> {
+    let native_options = eframe::NativeOptions::default();
+    eframe::run_native(
+        "File Hasher",
+        native_options,
+        Box::new(|_cc| Ok(Box::new(AppState::default()))),
+    )
 }
