@@ -63,6 +63,18 @@ impl eframe::App for AppState {
                 }
             }
 
+            // Handle file drag-and-drop
+            ctx.input(|i| {
+                if !i.raw.dropped_files.is_empty() {
+                    if let Some(file) = i.raw.dropped_files.first() {
+                        if let Some(path) = &file.path {
+                            self.file_path = Some(path.to_string_lossy().to_string());
+                            self.computed_hash = None; // Clear previous result
+                        }
+                    }
+                }
+            });
+
             ui.heading("File Hasher");
 
             
