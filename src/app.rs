@@ -54,11 +54,7 @@ impl eframe::App for AppState {
                         WorkerMessage::Success(hash) => {
                             self.computed_hash = Some(hash.clone());
                             self.progress = 1.0;
-                            if hash == self.expected_hash {
-                                self.status = VerificationStatus::Match;
-                            } else {
-                                self.status = VerificationStatus::NoMatch;
-                            }
+                            self.status = VerificationStatus::Idle; // Computation complete
                         }
                         WorkerMessage::Error(e) => {
                             self.status = VerificationStatus::Error(e);
@@ -76,17 +72,7 @@ impl eframe::App for AppState {
                     if let Some(path) = rfd::FileDialog::new().pick_file() {
                         let path_str = path.to_string_lossy().to_string();
                         self.file_path = Some(path_str.clone());
-                        
-                        let (sender, receiver) = channel();
-                        self.receiver = Some(receiver);
-                        self.status = VerificationStatus::Hashing;
-                        self.progress = 0.0;
-                        
-                        let ctx_clone = ctx.clone();
-                        std::thread::spawn(move || {
-                            crate::hasher::hash_file(path_str, sender);
-                            ctx_clone.request_repaint();
-                        });
+                        self.computed_hash = None; // Clear previous result
                     }
                 }
 
@@ -98,14 +84,44 @@ impl eframe::App for AppState {
                 }
             });
             
+            if self.file_path.is_some() && self.status != VerificationStatus::Hashing {
+                if ui.button("Compute Hash").clicked() {
+                    let path_str = self.file_path.clone().unwrap();
+                    
+                    let (sender, receiver) = channel();
+                    self.receiver = Some(receiver);
+                    self.status = VerificationStatus::Hashing;
+                    self.progress = 0.0;
+                    
+                    let ctx_clone = ctx.clone();
+                    std::thread::spawn(move || {
+                        crate::hasher::hash_file(path_str, sender);
+                        ctx_clone.request_repaint();
+                    });
+                }
+            }
+            
             ui.horizontal(|ui| {
+
                 ui.label("Expected Hash:");
                 ui.text_edit_singleline(&mut self.expected_hash);
             });
             
             ui.add(egui::ProgressBar::new(self.progress).text(format!("{:.1}%", self.progress * 100.0)));
             
+            // Dynamic match check
+            if let Some(ref computed) = self.computed_hash {
+                if self.expected_hash.is_empty() {
+                    self.status = VerificationStatus::Idle;
+                } else if computed == &self.expected_hash {
+                    self.status = VerificationStatus::Match;
+                } else {
+                    self.status = VerificationStatus::NoMatch;
+                }
+            }
+
             match &self.status {
+
                 VerificationStatus::Idle => {
                     ui.label("Status: Idle");
                 }

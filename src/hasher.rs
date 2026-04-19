@@ -4,6 +4,8 @@ use std::path::Path;
 use sha2::{Sha256, Digest};
 use std::sync::mpsc::Sender;
 
+const CHUNK_SIZE: usize = 64 * 1024; // 64KB chunks
+
 /// Messages sent from the background hasher thread to the UI thread.
 pub enum WorkerMessage {
     /// Progress update with a value between 0.0 and 1.0.
@@ -36,7 +38,7 @@ pub fn hash_file(path_str: String, sender: Sender<WorkerMessage>) {
     
     let mut hasher = Sha256::new();
     let mut reader = file;
-    let mut buffer = [0; 64 * 1024]; // 64KB chunks
+    let mut buffer = [0; CHUNK_SIZE];
     let mut bytes_read = 0;
     
     loop {
