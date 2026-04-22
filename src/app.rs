@@ -293,6 +293,37 @@ impl eframe::App for AppState {
             self.render_results(ui, card_frame.clone());
             ui.add_space(10.0);
             self.render_history(ui, card_frame);
+
+            // Visual cue for drag-and-drop
+            // Must be at the bottom to avoid drawing over main elements.
+            if ctx.input(|i| !i.raw.hovered_files.is_empty()) {
+                let screen_rect = ui.max_rect();
+                
+                // Dim the background
+                ui.painter().rect_filled(
+                    screen_rect,
+                    0.0,
+                    egui::Color32::from_rgba_unmultiplied(0, 0, 0, 180)
+                );
+                
+                // Draw thick border
+                let inset_rect = screen_rect.expand(-20.0);
+                ui.painter().rect_stroke(
+                    inset_rect,
+                    8.0,
+                    egui::Stroke::new(4.0, egui::Color32::from_rgb(65, 105, 225))
+                );
+                
+                // Draw text prompt in center
+                ui.painter().text(
+                    screen_rect.center(),
+                    egui::Align2::CENTER_CENTER,
+                    "Drop a file here",
+                    egui::FontId::proportional(24.0),
+                    egui::Color32::WHITE,
+                );
+            }
         });
+
     }
 }
