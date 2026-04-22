@@ -1,5 +1,6 @@
 use eframe::egui;
 use std::sync::mpsc::{channel, Receiver};
+use std::path::PathBuf;
 use crate::hasher::{self, WorkerMessage};
 
 
@@ -25,6 +26,7 @@ pub struct AppState {
     pub progress: f32,
     pub status: VerificationStatus,
     pub receiver: Option<Receiver<WorkerMessage>>,
+    pub last_dir: Option<PathBuf>,
 }
 
 impl Default for AppState {
@@ -36,10 +38,10 @@ impl Default for AppState {
             progress: 0.0,
             status: VerificationStatus::Idle,
             receiver: None,
+            last_dir: None,
         }
     }
 }
-
 
 impl AppState {
     fn render_file_selection(&mut self, ui: &mut egui::Ui, frame: egui::Frame) {
@@ -49,12 +51,23 @@ impl AppState {
                 ui.add_space(5.0);
                 ui.horizontal(|ui| {
                     if ui.button("Browse").clicked() {
-                        if let Some(path) = rfd::FileDialog::new().pick_file() {
+                        let mut dialog = rfd::FileDialog::new();
+                        if let Some(ref dir) = self.last_dir {
+                            dialog = dialog.set_directory(dir);
+                        }
+                        
+                        if let Some(path) = dialog.pick_file() {
                             let path_str = path.to_string_lossy().to_string();
                             self.file_path = Some(path_str.clone());
                             self.computed_hash = None; // Clear previous result
+                            
+                            // Store parent directory
+                            if let Some(parent) = path.parent() {
+                                self.last_dir = Some(parent.to_path_buf());
+                            }
                         }
                     }
+
                     if let Some(path) = &self.file_path {
                         ui.label(path);
                     } else {
@@ -168,10 +181,16 @@ impl eframe::App for AppState {
                         if let Some(path) = &file.path {
                             self.file_path = Some(path.to_string_lossy().to_string());
                             self.computed_hash = None; // Clear previous result
+                            
+                            // Store parent directory
+                            if let Some(parent) = path.parent() {
+                                self.last_dir = Some(parent.to_path_buf());
+                            }
                         }
                     }
                 }
             });
+
 
             ui.add_space(10.0);
             ui.heading("File Hasher");
@@ -191,4 +210,3 @@ impl eframe::App for AppState {
         });
     }
 }
-
