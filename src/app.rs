@@ -27,7 +27,9 @@ pub struct AppState {
     pub status: VerificationStatus,
     pub receiver: Option<Receiver<WorkerMessage>>,
     pub last_dir: Option<PathBuf>,
+    pub clipboard_checked: bool,
 }
+
 
 impl Default for AppState {
     fn default() -> Self {
@@ -39,6 +41,7 @@ impl Default for AppState {
             status: VerificationStatus::Idle,
             receiver: None,
             last_dir: None,
+            clipboard_checked: false,
         }
     }
 }
@@ -60,6 +63,7 @@ impl AppState {
                             let path_str = path.to_string_lossy().to_string();
                             self.file_path = Some(path_str.clone());
                             self.computed_hash = None; // Clear previous result
+                            self.clipboard_checked = false; // Trigger clipboard check again
                             
                             // Store parent directory
                             if let Some(parent) = path.parent() {
@@ -181,6 +185,7 @@ impl eframe::App for AppState {
                         if let Some(path) = &file.path {
                             self.file_path = Some(path.to_string_lossy().to_string());
                             self.computed_hash = None; // Clear previous result
+                            self.clipboard_checked = false; // Trigger clipboard check again
                             
                             // Store parent directory
                             if let Some(parent) = path.parent() {
@@ -191,6 +196,16 @@ impl eframe::App for AppState {
                 }
             });
 
+            // Auto-paste from clipboard if empty
+            if !self.clipboard_checked && self.expected_hash.is_empty() {
+                if let Some(clip) = ctx.input(|i| i.clipboard.clone()) {
+                    let trimmed = clip.trim();
+                    if trimmed.len() == 64 && trimmed.chars().all(|c| c.is_ascii_hexdigit()) {
+                        self.expected_hash = trimmed.to_string();
+                    }
+                }
+                self.clipboard_checked = true; // Only check once on startup
+            }
 
             ui.add_space(10.0);
             ui.heading("File Hasher");
