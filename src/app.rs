@@ -75,81 +75,111 @@ impl eframe::App for AppState {
                 }
             });
 
+            ui.add_space(10.0);
             ui.heading("File Hasher");
-
+            ui.add_space(10.0);
             
-            ui.horizontal(|ui| {
-                ui.label("File:");
-                if ui.button("Browse").clicked() {
-                    if let Some(path) = rfd::FileDialog::new().pick_file() {
-                        let path_str = path.to_string_lossy().to_string();
-                        self.file_path = Some(path_str.clone());
-                        self.computed_hash = None; // Clear previous result
-                    }
-                }
+            let card_frame = egui::Frame::none()
+                .fill(ui.style().visuals.widgets.noninteractive.bg_fill)
+                .rounding(8.0)
+                .inner_margin(12.0);
 
-
-                if let Some(path) = &self.file_path {
-                    ui.label(path);
-                } else {
-                    ui.label("No file selected");
-                }
-            });
-            
-            if self.file_path.is_some() && self.status != VerificationStatus::Hashing {
-                if ui.button("Compute Hash").clicked() {
-                    let path_str = self.file_path.clone().unwrap();
-                    
-                    let (sender, receiver) = channel();
-                    self.receiver = Some(receiver);
-                    self.status = VerificationStatus::Hashing;
-                    self.progress = 0.0;
-                    
-                    let ctx_clone = ctx.clone();
-                    std::thread::spawn(move || {
-                        crate::hasher::hash_file(path_str, sender);
-                        ctx_clone.request_repaint();
+            // Card 1: File Selection
+            card_frame.clone().show(ui, |ui| {
+                ui.vertical(|ui| {
+                    ui.label(egui::RichText::new("File Selection").strong());
+                    ui.add_space(5.0);
+                    ui.horizontal(|ui| {
+                        if ui.button("Browse").clicked() {
+                            if let Some(path) = rfd::FileDialog::new().pick_file() {
+                                let path_str = path.to_string_lossy().to_string();
+                                self.file_path = Some(path_str.clone());
+                                self.computed_hash = None; // Clear previous result
+                            }
+                        }
+                        if let Some(path) = &self.file_path {
+                            ui.label(path);
+                        } else {
+                            ui.label("No file selected");
+                        }
                     });
-                }
-            }
-            
-            ui.horizontal(|ui| {
-
-                ui.label("Expected Hash:");
-                ui.text_edit_singleline(&mut self.expected_hash);
+                });
             });
             
-            ui.add(egui::ProgressBar::new(self.progress).text(format!("{:.1}%", self.progress * 100.0)));
+            ui.add_space(10.0);
+
+            // Card 2: Verification Setup
+            card_frame.clone().show(ui, |ui| {
+                ui.vertical(|ui| {
+                    ui.label(egui::RichText::new("Verification").strong());
+                    ui.add_space(5.0);
+                    ui.horizontal(|ui| {
+                        ui.label("Expected Hash:");
+                        ui.text_edit_singleline(&mut self.expected_hash);
+                    });
+                    
+                    ui.add_space(5.0);
+                    
+                    if self.file_path.is_some() && self.status != VerificationStatus::Hashing {
+                        if ui.button("Compute Hash").clicked() {
+                            let path_str = self.file_path.clone().unwrap();
+                            
+                            let (sender, receiver) = channel();
+                            self.receiver = Some(receiver);
+                            self.status = VerificationStatus::Hashing;
+                            self.progress = 0.0;
+                            
+                            let ctx_clone = ctx.clone();
+                            std::thread::spawn(move || {
+                                crate::hasher::hash_file(path_str, sender);
+                                ctx_clone.request_repaint();
+                            });
+                        }
+                    }
+                });
+            });
             
-            // Dynamic match check
-            if let Some(ref computed) = self.computed_hash {
-                if self.expected_hash.is_empty() {
-                    self.status = VerificationStatus::Idle;
-                } else if computed == &self.expected_hash {
-                    self.status = VerificationStatus::Match;
-                } else {
-                    self.status = VerificationStatus::NoMatch;
-                }
-            }
+            ui.add_space(10.0);
 
-            match &self.status {
+            // Card 3: Results
+            card_frame.show(ui, |ui| {
+                ui.vertical(|ui| {
+                    ui.label(egui::RichText::new("Status").strong());
+                    ui.add_space(5.0);
+                    
+                    ui.add(egui::ProgressBar::new(self.progress).text(format!("{:.1}%", self.progress * 100.0)));
+                    ui.add_space(5.0);
+                    
+                    // Dynamic match check
+                    if let Some(ref computed) = self.computed_hash {
+                        if self.expected_hash.is_empty() {
+                            self.status = VerificationStatus::Idle;
+                        } else if computed == &self.expected_hash {
+                            self.status = VerificationStatus::Match;
+                        } else {
+                            self.status = VerificationStatus::NoMatch;
+                        }
+                    }
 
-                VerificationStatus::Idle => {
-                    ui.label("Status: Idle");
-                }
-                VerificationStatus::Hashing => {
-                    ui.label("Status: Hashing...");
-                }
-                VerificationStatus::Match => {
-                    ui.colored_label(egui::Color32::GREEN, "MATCH");
-                }
-                VerificationStatus::NoMatch => {
-                    ui.colored_label(egui::Color32::RED, "NO MATCH");
-                }
-                VerificationStatus::Error(e) => {
-                    ui.colored_label(egui::Color32::RED, format!("Error: {}", e));
-                }
-            }
+                    match &self.status {
+                        VerificationStatus::Idle => {
+                            ui.label("Status: Idle");
+                        }
+                        VerificationStatus::Hashing => {
+                            ui.label("Status: Hashing...");
+                        }
+                        VerificationStatus::Match => {
+                            ui.colored_label(egui::Color32::GREEN, "MATCH");
+                        }
+                        VerificationStatus::NoMatch => {
+                            ui.colored_label(egui::Color32::RED, "NO MATCH");
+                        }
+                        VerificationStatus::Error(e) => {
+                            ui.colored_label(egui::Color32::RED, format!("Error: {}", e));
+                        }
+                    }
+                });
+            });
         });
     }
 }
