@@ -68,3 +68,65 @@ pub fn hash_file(path_str: String, sender: Sender<WorkerMessage>) {
     let hash_string = format!("{:x}", result);
     let _ = sender.send(WorkerMessage::Success(hash_string));
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::mpsc::channel;
+    use std::io::Write;
+
+    #[test]
+    fn test_hash_file_success() {
+        let test_file_path = "test_success.txt";
+        let mut file = File::create(test_file_path).unwrap();
+        file.write_all(b"hello world").unwrap();
+        
+        let (sender, receiver) = channel();
+        
+        hash_file(test_file_path.to_string(), sender);
+        
+        // The known SHA256 for "hello world"
+        let expected_hash = "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9";
+        
+        let mut success = false;
+        while let Ok(msg) = receiver.recv() {
+            match msg {
+                WorkerMessage::Progress(p) => {
+                    assert!(p >= 0.0 && p <= 1.0);
+                }
+                WorkerMessage::Success(hash) => {
+                    assert_eq!(hash, expected_hash);
+                    success = true;
+                }
+                WorkerMessage::Error(e) => {
+                    panic!("Expected success, got error: {}", e);
+                }
+            }
+        }
+        
+        assert!(success, "Expected Success message was not received");
+        
+        // Clean up
+        std::fs::remove_file(test_file_path).unwrap();
+    }
+
+    #[test]
+    fn test_hash_file_not_found() {
+        let (sender, receiver) = channel();
+        
+        hash_file("non_existent_file.txt".to_string(), sender);
+        
+        let mut error = false;
+        while let Ok(msg) = receiver.recv() {
+            match msg {
+                WorkerMessage::Error(_) => {
+                    error = true;
+                }
+                _ => {}
+            }
+        }
+        
+        assert!(error, "Expected Error message was not received");
+    }
+}
+
