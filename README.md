@@ -8,6 +8,13 @@ A lean, cross-platform graphical desktop utility for computing and comparing fil
 3. **Verification:** Click the "Compute Hash" button to start the computation. The application reads the file in chunks in a background thread with a progress bar.
 4. **Result:** The application provides a prominent "Match" or "No Match" indicator that updates in real-time.
 
+## Convenience Features
+- **Directory Retention**: Remembers the last used directory during the current run.
+- **Auto-Paste**: Automatically detects and pastes a valid SHA256 hash from the clipboard on startup or file change.
+- **History List**: Keeps a record of checked files with their status; clicking an item restores its state.
+- **Drag-and-Drop Visual Cue**: Dims the window and shows a prompt when a file is hovered over.
+
+
 
 ## Installation and Usage
 

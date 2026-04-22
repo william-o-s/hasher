@@ -20,3 +20,12 @@
 - **What we did:** Built a File Hasher app using `egui` and Rust. We created a separate `hasher` module for background thread processing, implemented a dynamic match check for the hash comparison, and added a 'Compute Hash' button to give the user control over when to start heavy processing. We also implemented drag-and-drop.
 - **Why we did it:** To provide a lean, responsive utility that doesn't block the UI and protects user resources from accidental heavy loads. We used `egui` to learn core mechanics and keep it simple without overhead.
 - **What we are doing next:** Looking at UI styling or other stretch goals (like multiple algorithms).
+
+## Conversation Notes (2026-04-23)
+- **What we did:** 
+    - Refactored `src/app.rs` to move rendering logic to separate methods on `AppState`.
+    - Added unit tests for hashing logic in `src/hasher.rs`.
+    - Implemented 4 convenience features: directory retention, auto-paste from clipboard, history list, and drag-and-drop visual cue.
+- **Why we did it:** To improve code maintainability, ensure logic correctness, and provide a premium user experience with modern conveniences.
+- **What we are doing next:** Open to user preference (UI styling, more algorithms, or UI tests).
+

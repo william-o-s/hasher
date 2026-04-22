@@ -15,6 +15,13 @@ This document records the localized iteration of our implementation plan.
 - Added dynamic match/no match checks.
 - Modified flow to use explicit "Compute Hash" button to prevent accidental load.
 - Added drag-and-drop support for files.
+- Refactored `update` function in `app.rs` by extracting rendering logic to separate methods.
+- Added unit tests for hashing logic in `hasher.rs`.
+- Implemented directory retention during the current run.
+- Implemented auto-paste from clipboard for valid SHA256 hashes.
+- Implemented an interactive history list of checked files.
+- Added a visual cue (overlay and border) for drag-and-drop interaction.
+
 
 ## Verification
 - Unit tests covering positive matching, and negative bad-input scenarios for the hashing engine.
