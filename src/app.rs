@@ -1,8 +1,8 @@
+use crate::hasher::WorkerMessage;
 use eframe::egui;
-use std::sync::mpsc::{channel, Receiver};
+use egui::epaint;
 use std::path::PathBuf;
-use crate::hasher::{self, WorkerMessage};
-
+use std::sync::mpsc::{Receiver, channel};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum VerificationStatus {
@@ -67,13 +67,13 @@ impl AppState {
                         if let Some(ref dir) = self.last_dir {
                             dialog = dialog.set_directory(dir);
                         }
-                        
+
                         if let Some(path) = dialog.pick_file() {
                             let path_str = path.to_string_lossy().to_string();
                             self.file_path = Some(path_str.clone());
                             self.computed_hash = None; // Clear previous result
                             self.clipboard_checked = false; // Trigger clipboard check again
-                            
+
                             // Store parent directory
                             if let Some(parent) = path.parent() {
                                 self.last_dir = Some(parent.to_path_buf());
@@ -91,7 +91,7 @@ impl AppState {
         });
     }
 
-    fn render_verification_setup(&mut self, ui: &mut egui::Ui, frame: egui::Frame, ctx: &egui::Context) {
+    fn render_verification_setup(&mut self, ui: &mut egui::Ui, frame: egui::Frame) {
         frame.show(ui, |ui| {
             ui.vertical(|ui| {
                 ui.label(egui::RichText::new("Verification").strong());
@@ -100,19 +100,19 @@ impl AppState {
                     ui.label("Expected Hash:");
                     ui.text_edit_singleline(&mut self.expected_hash);
                 });
-                
+
                 ui.add_space(5.0);
-                
+
                 if self.file_path.is_some() && self.status != VerificationStatus::Hashing {
                     if ui.button("Compute Hash").clicked() {
                         let path_str = self.file_path.clone().unwrap();
-                        
+
                         let (sender, receiver) = channel();
                         self.receiver = Some(receiver);
                         self.status = VerificationStatus::Hashing;
                         self.progress = 0.0;
-                        
-                        let ctx_clone = ctx.clone();
+
+                        let ctx_clone = ui.ctx().clone();
                         std::thread::spawn(move || {
                             crate::hasher::hash_file(path_str, sender);
                             ctx_clone.request_repaint();
@@ -128,10 +128,13 @@ impl AppState {
             ui.vertical(|ui| {
                 ui.label(egui::RichText::new("Status").strong());
                 ui.add_space(5.0);
-                
-                ui.add(egui::ProgressBar::new(self.progress).text(format!("{:.1}%", self.progress * 100.0)));
+
+                ui.add(
+                    egui::ProgressBar::new(self.progress)
+                        .text(format!("{:.1}%", self.progress * 100.0)),
+                );
                 ui.add_space(5.0);
-                
+
                 // Dynamic match check
                 if let Some(ref computed) = self.computed_hash {
                     if self.expected_hash.is_empty() {
@@ -168,12 +171,12 @@ impl AppState {
         if self.history.is_empty() {
             return;
         }
-        
+
         frame.show(ui, |ui| {
             ui.vertical(|ui| {
                 ui.label(egui::RichText::new("History").strong());
                 ui.add_space(5.0);
-                
+
                 for item in &self.history {
                     ui.horizontal(|ui| {
                         if ui.link(&item.file_name).clicked() {
@@ -182,7 +185,7 @@ impl AppState {
                             self.status = item.status.clone();
                             self.progress = 1.0;
                         }
-                        
+
                         match &item.status {
                             VerificationStatus::Match => {
                                 ui.colored_label(egui::Color32::GREEN, "MATCH");
@@ -202,9 +205,8 @@ impl AppState {
 }
 
 impl eframe::App for AppState {
-
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             // Poll for channel messages
             if let Some(ref receiver) = self.receiver {
                 while let Ok(msg) = receiver.try_recv() {
@@ -216,7 +218,7 @@ impl eframe::App for AppState {
                             self.computed_hash = Some(hash.clone());
                             self.progress = 1.0;
                             self.status = VerificationStatus::Idle; // Computation complete
-                            
+
                             // Add to history
                             let status = if self.expected_hash.is_empty() {
                                 VerificationStatus::Idle
@@ -225,13 +227,13 @@ impl eframe::App for AppState {
                             } else {
                                 VerificationStatus::NoMatch
                             };
-                            
+
                             if let Some(ref path) = self.file_path {
                                 let file_name = std::path::Path::new(path)
                                     .file_name()
                                     .map(|n| n.to_string_lossy().to_string())
                                     .unwrap_or_else(|| "Unknown".to_string());
-                                
+
                                 self.history.push(HistoryItem {
                                     file_name,
                                     file_path: path.clone(),
@@ -249,14 +251,14 @@ impl eframe::App for AppState {
             }
 
             // Handle file drag-and-drop
-            ctx.input(|i| {
+            ui.ctx().input(|i| {
                 if !i.raw.dropped_files.is_empty() {
                     if let Some(file) = i.raw.dropped_files.first() {
                         if let Some(path) = &file.path {
                             self.file_path = Some(path.to_string_lossy().to_string());
                             self.computed_hash = None; // Clear previous result
                             self.clipboard_checked = false; // Trigger clipboard check again
-                            
+
                             // Store parent directory
                             if let Some(parent) = path.parent() {
                                 self.last_dir = Some(parent.to_path_buf());
@@ -266,29 +268,18 @@ impl eframe::App for AppState {
                 }
             });
 
-            // Auto-paste from clipboard if empty
-            if !self.clipboard_checked && self.expected_hash.is_empty() {
-                if let Some(clip) = ctx.input(|i| i.clipboard.clone()) {
-                    let trimmed = clip.trim();
-                    if trimmed.len() == 64 && trimmed.chars().all(|c| c.is_ascii_hexdigit()) {
-                        self.expected_hash = trimmed.to_string();
-                    }
-                }
-                self.clipboard_checked = true; // Only check once on startup
-            }
-
             ui.add_space(10.0);
             ui.heading("File Hasher");
             ui.add_space(10.0);
-            
-            let card_frame = egui::Frame::none()
+
+            let card_frame = egui::Frame::new()
                 .fill(ui.style().visuals.widgets.noninteractive.bg_fill)
-                .rounding(8.0)
+                .corner_radius(8.0)
                 .inner_margin(12.0);
 
             self.render_file_selection(ui, card_frame.clone());
             ui.add_space(10.0);
-            self.render_verification_setup(ui, card_frame.clone(), ctx);
+            self.render_verification_setup(ui, card_frame.clone());
             ui.add_space(10.0);
             self.render_results(ui, card_frame.clone());
             ui.add_space(10.0);
@@ -296,24 +287,25 @@ impl eframe::App for AppState {
 
             // Visual cue for drag-and-drop
             // Must be at the bottom to avoid drawing over main elements.
-            if ctx.input(|i| !i.raw.hovered_files.is_empty()) {
+            if ui.ctx().input(|i| !i.raw.hovered_files.is_empty()) {
                 let screen_rect = ui.max_rect();
-                
+
                 // Dim the background
                 ui.painter().rect_filled(
                     screen_rect,
                     0.0,
-                    egui::Color32::from_rgba_unmultiplied(0, 0, 0, 180)
+                    egui::Color32::from_rgba_unmultiplied(0, 0, 0, 180),
                 );
-                
+
                 // Draw thick border
                 let inset_rect = screen_rect.expand(-20.0);
                 ui.painter().rect_stroke(
                     inset_rect,
                     8.0,
-                    egui::Stroke::new(4.0, egui::Color32::from_rgb(65, 105, 225))
+                    egui::Stroke::new(4.0, egui::Color32::from_rgb(65, 105, 225)),
+                    epaint::StrokeKind::Middle,
                 );
-                
+
                 // Draw text prompt in center
                 ui.painter().text(
                     screen_rect.center(),
@@ -324,6 +316,5 @@ impl eframe::App for AppState {
                 );
             }
         });
-
     }
 }
