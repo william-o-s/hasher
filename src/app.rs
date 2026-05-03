@@ -70,6 +70,7 @@ impl AppState {
 
                         if let Some(path) = dialog.pick_file() {
                             let path_str = path.to_string_lossy().to_string();
+                            log::info!("File selected via dialog: {}", path_str);
                             self.file_path = Some(path_str.clone());
                             self.computed_hash = None; // Clear previous result
                             self.clipboard_checked = false; // Trigger clipboard check again
@@ -99,6 +100,7 @@ impl AppState {
                 ui.horizontal(|ui| {
                     ui.label("Expected Hash:");
                     ui.text_edit_singleline(&mut self.expected_hash);
+                    self.expected_hash = transform_input_hash(&self.expected_hash);
                 });
 
                 ui.add_space(5.0);
@@ -106,6 +108,7 @@ impl AppState {
                 if self.file_path.is_some() && self.status != VerificationStatus::Hashing {
                     if ui.button("Compute Hash").clicked() {
                         let path_str = self.file_path.clone().unwrap();
+                        log::info!("Starting hash computation for: {}", path_str);
 
                         let (sender, receiver) = channel();
                         self.receiver = Some(receiver);
@@ -136,14 +139,18 @@ impl AppState {
                 ui.add_space(5.0);
 
                 // Dynamic match check
-                if let Some(ref computed) = self.computed_hash {
-                    if self.expected_hash.is_empty() {
-                        self.status = VerificationStatus::Idle;
-                    } else if computed == &self.expected_hash {
-                        self.status = VerificationStatus::Match;
-                    } else {
-                        self.status = VerificationStatus::NoMatch;
-                    }
+                if let Some(ref computed_hash) = self.computed_hash {
+                    self.status = get_verification_status(computed_hash, &self.expected_hash);
+
+                    egui::Grid::new("comparison_grid").show(ui, |ui| {
+                        ui.label(egui::RichText::new("Expected Hash: ").strong());
+                        ui.label(format!("{}", self.expected_hash));
+                        ui.end_row();
+
+                        ui.label(egui::RichText::new("Computed Hash: ").strong());
+                        ui.label(format!("{}", computed_hash));
+                        ui.end_row();
+                    });
                 }
 
                 match &self.status {
@@ -194,13 +201,19 @@ impl AppState {
                                 ui.colored_label(egui::Color32::RED, "NO MATCH");
                             }
                             _ => {
-                                ui.label("Computed");
+                                ui.label("Not verified");
                             }
                         }
+
+                        ui.label(format!(" --> {}", item.computed_hash));
                     });
                 }
             });
         });
+    }
+
+    fn render_logger(&mut self, ui: &mut egui::Ui) {
+        egui_logger::logger_ui().show(ui);
     }
 }
 
@@ -220,13 +233,7 @@ impl eframe::App for AppState {
                             self.status = VerificationStatus::Idle; // Computation complete
 
                             // Add to history
-                            let status = if self.expected_hash.is_empty() {
-                                VerificationStatus::Idle
-                            } else if hash == self.expected_hash {
-                                VerificationStatus::Match
-                            } else {
-                                VerificationStatus::NoMatch
-                            };
+                            let status = get_verification_status(&hash, &self.expected_hash);
 
                             if let Some(ref path) = self.file_path {
                                 let file_name = std::path::Path::new(path)
@@ -242,8 +249,8 @@ impl eframe::App for AppState {
                                 });
                             }
                         }
-
                         WorkerMessage::Error(e) => {
+                            log::error!("Error during hash computation: {}", e);
                             self.status = VerificationStatus::Error(e);
                         }
                     }
@@ -255,7 +262,9 @@ impl eframe::App for AppState {
                 if !i.raw.dropped_files.is_empty() {
                     if let Some(file) = i.raw.dropped_files.first() {
                         if let Some(path) = &file.path {
-                            self.file_path = Some(path.to_string_lossy().to_string());
+                            let path_str = path.to_string_lossy().to_string();
+                            log::info!("File dropped: {}", path_str);
+                            self.file_path = Some(path_str);
                             self.computed_hash = None; // Clear previous result
                             self.clipboard_checked = false; // Trigger clipboard check again
 
@@ -284,6 +293,8 @@ impl eframe::App for AppState {
             self.render_results(ui, card_frame.clone());
             ui.add_space(10.0);
             self.render_history(ui, card_frame);
+            ui.add_space(20.0);
+            self.render_logger(ui);
 
             // Visual cue for drag-and-drop
             // Must be at the bottom to avoid drawing over main elements.
@@ -316,5 +327,26 @@ impl eframe::App for AppState {
                 );
             }
         });
+    }
+}
+
+fn transform_input_hash(hash: &str) -> String {
+    let hash = hash.strip_prefix("sha256:").unwrap_or(&hash);
+    hash.to_ascii_lowercase()
+}
+
+fn get_verification_status(computed_hash: &str, expected_hash: &str) -> VerificationStatus {
+    if expected_hash.is_empty() {
+        VerificationStatus::Idle
+    } else if computed_hash == expected_hash {
+        log::info!("Hash match successful!");
+        VerificationStatus::Match
+    } else {
+        log::warn!(
+            "Hash mismatch! Expected: {}, Computed: {}",
+            transform_input_hash(expected_hash),
+            computed_hash
+        );
+        VerificationStatus::NoMatch
     }
 }
