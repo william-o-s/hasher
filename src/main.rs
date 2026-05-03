@@ -8,10 +8,7 @@ use app::AppState;
 fn main() -> eframe::Result<()> {
     env_logger::init(); // Log to stderr
 
-    let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([1200.0, 900.0]),
-        ..Default::default()
-    };
+    let options = eframe::NativeOptions::default();
 
     eframe::run_native(
         "File Hasher",
