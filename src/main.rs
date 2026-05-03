@@ -6,8 +6,10 @@ mod hasher;
 use app::AppState;
 
 fn main() -> eframe::Result<()> {
-    env_logger::init(); // Log to stderr
-    egui_logger::builder().init().unwrap(); // For displaying log window
+    egui_logger::builder()
+        .show_all_categories(false)
+        .init()
+        .expect("Error initializing egui_logger");
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size([1200.0, 900.0]),

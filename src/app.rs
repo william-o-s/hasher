@@ -70,6 +70,7 @@ impl AppState {
 
                         if let Some(path) = dialog.pick_file() {
                             let path_str = path.to_string_lossy().to_string();
+                            log::info!("File selected via dialog: {}", path_str);
                             self.file_path = Some(path_str.clone());
                             self.computed_hash = None; // Clear previous result
                             self.clipboard_checked = false; // Trigger clipboard check again
@@ -106,6 +107,7 @@ impl AppState {
                 if self.file_path.is_some() && self.status != VerificationStatus::Hashing {
                     if ui.button("Compute Hash").clicked() {
                         let path_str = self.file_path.clone().unwrap();
+                        log::info!("Starting hash computation for: {}", path_str);
 
                         let (sender, receiver) = channel();
                         self.receiver = Some(receiver);
@@ -190,9 +192,11 @@ impl AppState {
                                 ui.colored_label(egui::Color32::RED, "NO MATCH");
                             }
                             _ => {
-                                ui.label("Computed");
+                                ui.label("Not verified");
                             }
                         }
+
+                        ui.label(format!(" --> {}", item.computed_hash));
                     });
                 }
             });
@@ -200,9 +204,7 @@ impl AppState {
     }
 
     fn render_logger(&mut self, ui: &mut egui::Ui) {
-        egui::Window::new("Log").show(ui.ctx(), |ui| {
-            egui_logger::logger_ui().show(ui);
-        });
+        egui_logger::logger_ui().show(ui);
     }
 }
 
@@ -238,8 +240,8 @@ impl eframe::App for AppState {
                                 });
                             }
                         }
-
                         WorkerMessage::Error(e) => {
+                            log::error!("Error during hash computation: {}", e);
                             self.status = VerificationStatus::Error(e);
                         }
                     }
@@ -251,7 +253,9 @@ impl eframe::App for AppState {
                 if !i.raw.dropped_files.is_empty() {
                     if let Some(file) = i.raw.dropped_files.first() {
                         if let Some(path) = &file.path {
-                            self.file_path = Some(path.to_string_lossy().to_string());
+                            let path_str = path.to_string_lossy().to_string();
+                            log::info!("File dropped: {}", path_str);
+                            self.file_path = Some(path_str);
                             self.computed_hash = None; // Clear previous result
                             self.clipboard_checked = false; // Trigger clipboard check again
 
@@ -326,8 +330,10 @@ fn get_verification_status(computed_hash: &str, expected_hash: &str) -> Verifica
     if expected_hash.is_empty() {
         VerificationStatus::Idle
     } else if computed_hash == transform_input_hash(expected_hash) {
+        log::info!("Hash match successful!");
         VerificationStatus::Match
     } else {
+        log::warn!("Hash mismatch! Expected: {}, Computed: {}", transform_input_hash(expected_hash), computed_hash);
         VerificationStatus::NoMatch
     }
 }

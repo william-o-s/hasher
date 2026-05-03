@@ -23,6 +23,7 @@ pub fn hash_file(path_str: String, sender: Sender<WorkerMessage>) {
     let file = match File::open(&path) {
         Ok(f) => f,
         Err(e) => {
+            log::error!("Failed to open file {path_str}: {e}");
             let _ = sender.send(WorkerMessage::Error(e.to_string()));
             return;
         }
@@ -31,6 +32,7 @@ pub fn hash_file(path_str: String, sender: Sender<WorkerMessage>) {
     let total_size = match file.metadata() {
         Ok(m) => m.len(),
         Err(e) => {
+            log::error!("Failed to get metadata for {path_str}: {e}");
             let _ = sender.send(WorkerMessage::Error(e.to_string()));
             return;
         }
@@ -58,6 +60,7 @@ pub fn hash_file(path_str: String, sender: Sender<WorkerMessage>) {
                 let _ = sender.send(WorkerMessage::Progress(progress));
             }
             Err(e) => {
+                log::error!("Error reading chunk from {path_str}: {e}");
                 let _ = sender.send(WorkerMessage::Error(e.to_string()));
                 return;
             }
@@ -66,6 +69,7 @@ pub fn hash_file(path_str: String, sender: Sender<WorkerMessage>) {
 
     let result = hasher.finalize();
     let hash_string = hex::encode(result);
+    log::info!("Computed {path_str} -> {hash_string}");
     let _ = sender.send(WorkerMessage::Success(hash_string));
 }
 

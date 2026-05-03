@@ -1540,6 +1540,7 @@ dependencies = [
  "egui_logger",
  "env_logger",
  "hex",
+ "log",
  "rfd",
  "sha2",
 ]
