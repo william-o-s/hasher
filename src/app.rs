@@ -136,14 +136,10 @@ impl AppState {
                 ui.add_space(5.0);
 
                 // Dynamic match check
-                if let Some(ref computed) = self.computed_hash {
-                    if self.expected_hash.is_empty() {
-                        self.status = VerificationStatus::Idle;
-                    } else if computed == &self.expected_hash {
-                        self.status = VerificationStatus::Match;
-                    } else {
-                        self.status = VerificationStatus::NoMatch;
-                    }
+                if let Some(ref computed_hash) = self.computed_hash {
+                    self.status = get_verification_status(computed_hash, &self.expected_hash);
+                    ui.label(egui::RichText::new("Computed Hash").strong());
+                    ui.label(format!("{computed_hash}"));
                 }
 
                 match &self.status {
@@ -220,13 +216,7 @@ impl eframe::App for AppState {
                             self.status = VerificationStatus::Idle; // Computation complete
 
                             // Add to history
-                            let status = if self.expected_hash.is_empty() {
-                                VerificationStatus::Idle
-                            } else if hash == self.expected_hash {
-                                VerificationStatus::Match
-                            } else {
-                                VerificationStatus::NoMatch
-                            };
+                            let status = get_verification_status(&hash, &self.expected_hash);
 
                             if let Some(ref path) = self.file_path {
                                 let file_name = std::path::Path::new(path)
@@ -316,5 +306,20 @@ impl eframe::App for AppState {
                 );
             }
         });
+    }
+}
+
+fn transform_input_hash(hash: &str) -> String {
+    let hash = hash.strip_prefix("sha256:").unwrap_or(&hash);
+    hash.to_ascii_lowercase()
+}
+
+fn get_verification_status(computed_hash: &str, expected_hash: &str) -> VerificationStatus {
+    if expected_hash.is_empty() {
+        VerificationStatus::Idle
+    } else if computed_hash == transform_input_hash(expected_hash) {
+        VerificationStatus::Match
+    } else {
+        VerificationStatus::NoMatch
     }
 }
