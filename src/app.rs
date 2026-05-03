@@ -100,6 +100,7 @@ impl AppState {
                 ui.horizontal(|ui| {
                     ui.label("Expected Hash:");
                     ui.text_edit_singleline(&mut self.expected_hash);
+                    self.expected_hash = transform_input_hash(&self.expected_hash);
                 });
 
                 ui.add_space(5.0);
@@ -140,8 +141,16 @@ impl AppState {
                 // Dynamic match check
                 if let Some(ref computed_hash) = self.computed_hash {
                     self.status = get_verification_status(computed_hash, &self.expected_hash);
-                    ui.label(egui::RichText::new("Computed Hash").strong());
-                    ui.label(format!("{computed_hash}"));
+
+                    egui::Grid::new("comparison_grid").show(ui, |ui| {
+                        ui.label(egui::RichText::new("Expected Hash: ").strong());
+                        ui.label(format!("{}", self.expected_hash));
+                        ui.end_row();
+
+                        ui.label(egui::RichText::new("Computed Hash: ").strong());
+                        ui.label(format!("{}", computed_hash));
+                        ui.end_row();
+                    });
                 }
 
                 match &self.status {
@@ -329,11 +338,15 @@ fn transform_input_hash(hash: &str) -> String {
 fn get_verification_status(computed_hash: &str, expected_hash: &str) -> VerificationStatus {
     if expected_hash.is_empty() {
         VerificationStatus::Idle
-    } else if computed_hash == transform_input_hash(expected_hash) {
+    } else if computed_hash == expected_hash {
         log::info!("Hash match successful!");
         VerificationStatus::Match
     } else {
-        log::warn!("Hash mismatch! Expected: {}, Computed: {}", transform_input_hash(expected_hash), computed_hash);
+        log::warn!(
+            "Hash mismatch! Expected: {}, Computed: {}",
+            transform_input_hash(expected_hash),
+            computed_hash
+        );
         VerificationStatus::NoMatch
     }
 }
