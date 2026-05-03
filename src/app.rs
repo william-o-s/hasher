@@ -198,6 +198,12 @@ impl AppState {
             });
         });
     }
+
+    fn render_logger(&mut self, ui: &mut egui::Ui) {
+        egui::Window::new("Log").show(ui.ctx(), |ui| {
+            egui_logger::logger_ui().show(ui);
+        });
+    }
 }
 
 impl eframe::App for AppState {
@@ -274,6 +280,8 @@ impl eframe::App for AppState {
             self.render_results(ui, card_frame.clone());
             ui.add_space(10.0);
             self.render_history(ui, card_frame);
+            ui.add_space(20.0);
+            self.render_logger(ui);
 
             // Visual cue for drag-and-drop
             // Must be at the bottom to avoid drawing over main elements.
